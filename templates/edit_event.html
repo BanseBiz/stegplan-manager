@@ -1,0 +1,154 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+    <h2 class="text-3xl font-extrabold mb-8 text-slate-800">
+        {% if event %}{{ t('edit_title_edit') }}{% else %}{{ t('edit_title_new') }}{% endif %}
+    </h2>
+
+    {% if error %}
+    <div class="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200 text-sm font-medium">
+        {{ t(error) }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{% if event %}{{ url_for('edit_event', id=event.id) }}{% else %}{{ url_for('add_event') }}{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="mb-5">
+            <label class="block text-slate-700 text-sm font-bold mb-2" for="name">{{ t('edit_name_label') }}</label>
+            <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" 
+                   id="name" name="name" type="text" required placeholder="{{ t('edit_name_placeholder') }}"
+                   value="{{ event.name if event else '' }}">
+        </div>
+
+        <div class="mb-5">
+            <label class="block text-slate-700 text-sm font-bold mb-2" for="weekday">{{ t('edit_weekday_label') }}</label>
+            <select class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer bg-white" 
+                    id="weekday" name="weekday" required>
+                {% set days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'] %}
+                {% set day_keys = {'Montag': 'monday', 'Dienstag': 'tuesday', 'Mittwoch': 'wednesday', 'Donnerstag': 'thursday', 'Freitag': 'friday', 'Samstag': 'saturday', 'Sonntag': 'sunday'} %}
+                {% for day in days %}
+                    <option value="{{ day }}" {% if event and event.weekday == day %}selected{% endif %}>{{ t(day_keys[day]) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6 mb-5">
+            <div>
+                <label class="block text-slate-700 text-sm font-bold mb-2" for="start_time">{{ t('edit_start_time_label') }}</label>
+                <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer" 
+                       id="start_time" name="start_time" type="time" required
+                       value="{{ event.start_time if event else '17:00' }}">
+            </div>
+            <div>
+                <label class="block text-slate-700 text-sm font-bold mb-2" for="end_time">{{ t('edit_end_time_label') }}</label>
+                <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer" 
+                       id="end_time" name="end_time" type="time" required
+                       value="{{ event.end_time if event else '19:00' }}">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-5">
+            <div>
+                <label class="block text-slate-700 text-sm font-bold mb-2" for="season">{{ t('edit_season_label') }}</label>
+                <select class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer bg-white" 
+                        id="season" name="season" required>
+                    <option value="Immer" {% if event and event.season == 'Immer' %}selected{% endif %}>{{ t('season_always') }}</option>
+                    <option value="Sommer" {% if event and event.season == 'Sommer' %}selected{% endif %}>{{ t('season_summer') }}</option>
+                    <option value="Winter" {% if event and event.season == 'Winter' %}selected{% endif %}>{{ t('season_winter') }}</option>
+                    <option value="Manuell" {% if event and event.season == 'Manuell' %}selected{% endif %}>{{ t('season_manual') }}</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-slate-700 text-sm font-bold mb-2" for="start_date">{{ t('edit_start_date_label') }}</label>
+                <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" 
+                       id="start_date" name="start_date" type="text" placeholder="{{ t('edit_start_date_placeholder') }}" pattern="(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[012])" title="{{ t('error_invalid_date_title_start') }}"
+                       value="{{ event.start_date if event else '' }}">
+            </div>
+            <div>
+                <label class="block text-slate-700 text-sm font-bold mb-2" for="end_date">{{ t('edit_end_date_label') }}</label>
+                <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" 
+                       id="end_date" name="end_date" type="text" placeholder="{{ t('edit_end_date_placeholder') }}" pattern="(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[012])" title="{{ t('error_invalid_date_title_end') }}"
+                       value="{{ event.end_date if event else '' }}">
+            </div>
+        </div>
+
+        <div class="mb-5">
+            <label class="block text-slate-700 text-sm font-bold mb-2">{{ t('edit_supervisors_label') }}</label>
+            <div class="grid grid-cols-3 gap-3">
+                <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" name="supervisor1" type="text" placeholder="{{ t('edit_supervisor_1') }}" value="{{ event.supervisor1 if event else '' }}">
+                <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" name="supervisor2" type="text" placeholder="{{ t('edit_supervisor_2') }}" value="{{ event.supervisor2 if event else '' }}">
+                <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" name="supervisor3" type="text" placeholder="{{ t('edit_supervisor_3') }}" value="{{ event.supervisor3 if event else '' }}">
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <label class="block text-slate-700 text-sm font-bold mb-2" for="comment">{{ t('edit_comment_label') }}</label>
+            <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" 
+                   id="comment" name="comment" type="text" placeholder="{{ t('edit_comment_placeholder') }}"
+                   value="{{ event.comment if event else '' }}">
+        </div>
+
+        <div class="flex items-center justify-between pt-4 border-t border-slate-200">
+            <a class="font-bold text-sm text-slate-500 hover:text-slate-800 transition" href="{{ url_for('index') }}">
+                {{ t('btn_back_cancel') | safe }}
+            </a>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500 transition" type="submit">
+                {{ t('btn_save') }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const saisonSelect = document.getElementById('season');
+    const startInput = document.getElementById('start_date');
+    const endInput = document.getElementById('end_date');
+    
+    const sommerStart = "{{ config.get('sommerphase_start', '31.03') }}";
+    const winterStart = "{{ config.get('winterphase_start', '27.10') }}";
+    
+    function updateFields() {
+        const val = saisonSelect.value;
+        if (val === 'Immer') {
+            startInput.value = '';
+            endInput.value = '';
+            startInput.readOnly = true;
+            endInput.readOnly = true;
+            startInput.classList.add('bg-slate-100', 'text-slate-500');
+            endInput.classList.add('bg-slate-100', 'text-slate-500');
+        } else if (val === 'Sommer') {
+            startInput.value = sommerStart;
+            endInput.value = winterStart;
+            startInput.readOnly = true;
+            endInput.readOnly = true;
+            startInput.classList.add('bg-slate-100', 'text-slate-500');
+            endInput.classList.add('bg-slate-100', 'text-slate-500');
+        } else if (val === 'Winter') {
+            startInput.value = winterStart;
+            endInput.value = sommerStart;
+            startInput.readOnly = true;
+            endInput.readOnly = true;
+            startInput.classList.add('bg-slate-100', 'text-slate-500');
+            endInput.classList.add('bg-slate-100', 'text-slate-500');
+        } else if (val === 'Manuell') {
+            startInput.readOnly = false;
+            endInput.readOnly = false;
+            startInput.classList.remove('bg-slate-100', 'text-slate-500');
+            endInput.classList.remove('bg-slate-100', 'text-slate-500');
+        }
+    }
+    
+    saisonSelect.addEventListener('change', updateFields);
+    
+    // Init on page load (don't overwrite user's values on edit, unless missing)
+    if (saisonSelect.value !== 'Manuell') {
+        startInput.readOnly = true; endInput.readOnly = true;
+        startInput.classList.add('bg-slate-100', 'text-slate-500');
+        endInput.classList.add('bg-slate-100', 'text-slate-500');
+    }
+});
+</script>
+{% endblock %}

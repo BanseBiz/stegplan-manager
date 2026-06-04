@@ -1,0 +1,5 @@
+*.log
+*.svg
+*.pdf
+*.pyc
+*.csv

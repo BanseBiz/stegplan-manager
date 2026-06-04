@@ -1,0 +1,34 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200 mt-12">
+    <h2 class="text-3xl font-extrabold mb-6 text-slate-800 text-center">{{ t('login_title') }}</h2>
+    
+    {% if error %}
+    <div class="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200 text-sm font-medium">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-5">
+            <label class="block text-slate-700 text-sm font-bold mb-2" for="username">{{ t('login_username') }}</label>
+            <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" 
+                   id="username" name="username" type="text" required autofocus>
+        </div>
+
+        <div class="mb-8">
+            <label class="block text-slate-700 text-sm font-bold mb-2" for="password">{{ t('login_password') }}</label>
+            <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" 
+                   id="password" name="password" type="password" required>
+        </div>
+
+        <div class="flex items-center justify-center">
+            <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500 transition w-full" type="submit">
+                {{ t('login_btn') }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

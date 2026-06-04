@@ -1,0 +1,109 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-extrabold text-slate-800">{{ t('index_title') }}</h2>
+    <div class="flex items-center space-x-4">
+        <a href="{{ url_for('add_event') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-500 transition shadow">
+            {{ t('index_btn_new') }}
+        </a>
+        {% if events %}
+        <form action="{{ url_for('delete_all_events') }}" method="POST" class="m-0" onsubmit="return confirm('{{ t('index_confirm_delete_all') }}');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-lg font-bold transition shadow">
+                {{ t('index_btn_delete_all') }}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200">
+    <table class="w-full text-left border-collapse">
+        <thead>
+            <tr class="bg-slate-100 text-slate-600 uppercase text-sm leading-normal border-b border-slate-200">
+                <th class="py-4 px-6 font-bold">{{ t('table_weekday') }}</th>
+                <th class="py-4 px-6 font-bold">{{ t('table_time') }}</th>
+                <th class="py-4 px-6 font-bold">{{ t('table_season') }}</th>
+                <th class="py-4 px-6 font-bold">{{ t('table_description') }}</th>
+                <th class="py-4 px-6 font-bold">{{ t('table_supervisor') }}</th>
+                <th class="py-4 px-6 font-bold text-center">{{ t('table_actions') }}</th>
+            </tr>
+        </thead>
+        <tbody class="text-slate-600 text-sm font-medium">
+            {% set day_keys = {'Montag': 'monday', 'Dienstag': 'tuesday', 'Mittwoch': 'wednesday', 'Donnerstag': 'thursday', 'Freitag': 'friday', 'Samstag': 'saturday', 'Sonntag': 'sunday'} %}
+            {% set season_keys = {'Immer': 'season_always', 'Sommer': 'season_summer', 'Winter': 'season_winter', 'Manuell': 'season_manual'} %}
+            {% for event in events %}
+            <tr class="border-b border-slate-100 hover:bg-slate-50 transition duration-150">
+                <td class="py-4 px-6 whitespace-nowrap">{{ t(day_keys.get(event.weekday, event.weekday)) }}</td>
+                <td class="py-4 px-6">{{ event.start_time }} - {{ event.end_time }}</td>
+                <td class="py-4 px-6 text-sm text-slate-500">
+                    <span class="bg-slate-200 text-slate-700 py-1 px-2 rounded-md font-semibold">{{ t(season_keys.get(event.season or 'Immer', 'season_always')) }}</span>
+                </td>
+                <td class="py-4 px-6 font-bold text-slate-900">{{ event.name }}</td>
+                <td class="py-4 px-6 text-slate-500">
+                    {% set supervisors = [event.supervisor1, event.supervisor2, event.supervisor3] | reject('equalto', '') | list %}
+                    {{ supervisors | join(' & ') }}
+                </td>
+                <td class="py-4 px-6 text-center">
+                    <div class="flex item-center justify-center space-x-3">
+                        <a href="{{ url_for('edit_event', id=event.id) }}" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition">
+                            {{ t('table_btn_edit') }}
+                        </a>
+                        <form action="{{ url_for('delete_event', id=event.id) }}" method="POST" class="m-0" onsubmit="return confirm('{{ t('table_confirm_delete') }}');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition">
+                                {{ t('table_btn_delete') }}
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="py-12 text-center text-slate-500 text-lg">
+                    {{ t('table_no_events') | safe }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="mt-12">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-200 pb-2">
+        <h2 class="text-2xl font-bold text-slate-800">{{ t('preview_stegplan_title') }}</h2>
+    </div>
+
+    {% if svg_exists %}
+        <div class="bg-white p-4 rounded-xl shadow-inner border border-slate-200 overflow-x-auto">
+            <img src="/stegplan.svg?{{ range(1, 9999) | random }}" 
+                 alt="{{ t('alt_stegplan_svg') }}" 
+                 class="max-w-full h-auto mx-auto rounded shadow-sm">
+        </div>
+    {% else %}
+        <div class="bg-amber-50 border border-amber-200 p-6 rounded-xl text-center text-amber-700">
+            <p class="font-medium">{{ t('preview_stegplan_none') }}</p>
+            <p class="text-sm mt-1">{{ t('preview_stegplan_hint') }}</p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="mt-12 mb-12">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-200 pb-2">
+        <h2 class="text-2xl font-bold text-slate-800">{{ t('preview_stundenplan_title') }}</h2>
+    </div>
+
+    {% if stundenplan_exists %}
+        <div class="bg-white p-4 rounded-xl shadow-inner border border-slate-200 overflow-x-auto">
+            <img src="/stundenplan.svg?{{ range(1, 9999) | random }}" 
+                 alt="{{ t('alt_stundenplan_svg') }}" 
+                 class="max-w-full h-auto mx-auto rounded shadow-sm">
+        </div>
+    {% else %}
+        <div class="bg-amber-50 border border-amber-200 p-6 rounded-xl text-center text-amber-700">
+            <p class="font-medium">{{ t('preview_stundenplan_none') }}</p>
+            <p class="text-sm mt-1">{{ t('preview_stegplan_hint') }}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

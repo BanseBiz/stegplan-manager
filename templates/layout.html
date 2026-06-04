@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('app_title') }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+    
+    <nav class="bg-slate-800 p-4 text-white shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold tracking-tight">{{ t('app_heading') }}</h1>
+            {% if current_user.is_authenticated %}
+            <div class="flex items-center space-x-2">
+                <span class="text-slate-400 text-sm font-medium px-2">{{ t('hello_user', current_user.username) }}</span>
+                <div class="w-px h-6 bg-slate-700"></div>
+                {% if current_user.username == config.get('admin_user', 'admin') %}
+                <a href="{{ url_for('manage_users') }}" class="bg-slate-600 px-3 py-2 rounded-lg font-bold hover:bg-slate-500 transition shadow text-sm">
+                    {{ t('nav_users') }}
+                </a>
+                {% endif %}
+                <a href="{{ url_for('change_password') }}" class="bg-slate-600 px-3 py-2 rounded-lg font-bold hover:bg-slate-500 transition shadow text-sm">{{ t('nav_profile') }}</a>
+                <div class="w-px h-6 bg-slate-700"></div>
+
+                <button onclick="openSchedulePdfModal()" class="bg-indigo-600 px-4 py-2 rounded-lg font-bold hover:bg-indigo-500 transition shadow">
+                    {{ t('nav_stegplan_pdf') }}
+                </button>
+                <button onclick="openPdfModal()" class="bg-indigo-600 px-4 py-2 rounded-lg font-bold hover:bg-indigo-500 transition shadow">
+                    {{ t('nav_stundenplan_pdf') }}
+                </button>
+                <form action="{{ url_for('import_csv') }}" method="POST" enctype="multipart/form-data" id="import-form" class="m-0 flex">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="file" name="csv_file" id="csv_file" accept=".csv" class="hidden" onchange="document.getElementById('import-form').submit();">
+                    <button type="button" onclick="document.getElementById('csv_file').click();" class="bg-emerald-600 px-4 py-2 rounded-lg font-bold hover:bg-emerald-500 transition shadow cursor-pointer">
+                        {{ t('nav_import_csv') }}
+                    </button>
+                </form>
+                <a href="{{ url_for('export_csv') }}" class="bg-emerald-600 px-4 py-2 rounded-lg font-bold hover:bg-emerald-500 transition shadow">
+                    {{ t('nav_export_csv') }}
+                </a>
+                <a href="{{ url_for('logout') }}" class="bg-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-500 transition shadow ml-2">
+                    {{ t('nav_logout') }}
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container mx-auto mt-10 p-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Schedule PDF Modal -->
+    <div id="schedulePdfModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+        <div class="bg-white rounded-xl shadow-lg p-6 max-w-sm w-full">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">{{ t('modal_schedule_title') }}</h3>
+            <p class="text-sm text-slate-600 mb-4">{{ t('modal_schedule_desc') }}</p>
+            <form id="schedulePdfForm" onsubmit="submitSchedulePdfModal(event)">
+                <div class="mb-4">
+                    <label class="block text-slate-700 text-sm font-bold mb-2" for="schedule_pdf_date">{{ t('modal_pdf_date') }}</label>
+                    <input type="date" id="schedule_pdf_date" name="date" required 
+                           class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                </div>
+                <div class="mb-5">
+                    <label class="block text-slate-700 text-sm font-bold mb-2" for="schedule_orientation">{{ t('orientation_label') }}</label>
+                    <select id="schedule_orientation" name="orientation" class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer bg-white">
+                        <option value="portrait">{{ t('orientation_portrait') }}</option>
+                        <option value="landscape">{{ t('orientation_landscape') }}</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeSchedulePdfModal()" class="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition">{{ t('btn_cancel') }}</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-indigo-500 transition shadow">{{ t('btn_download') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PDF Modal -->
+    <div id="pdfModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden flex justify-center items-center z-50">
+        <div class="bg-white rounded-xl shadow-lg p-6 max-w-sm w-full">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">{{ t('modal_pdf_title') }}</h3>
+            <p class="text-sm text-slate-600 mb-4">{{ t('modal_pdf_desc') }}</p>
+            <form id="pdfForm" onsubmit="submitPdfModal(event)">
+                <div class="mb-5">
+                    <label class="block text-slate-700 text-sm font-bold mb-2" for="pdf_date">{{ t('modal_pdf_date') }}</label>
+                    <input type="date" id="pdf_date" name="date" required 
+                           class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closePdfModal()" class="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition">{{ t('btn_cancel') }}</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-indigo-500 transition shadow">{{ t('btn_download') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openSchedulePdfModal() {
+            const modal = document.getElementById('schedulePdfModal');
+            const dateInput = document.getElementById('schedule_pdf_date');
+            const today = new Date();
+            const localDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+            dateInput.value = localDate;
+            dateInput.min = localDate;
+            modal.classList.remove('hidden');
+        }
+        function closeSchedulePdfModal() {
+            document.getElementById('schedulePdfModal').classList.add('hidden');
+        }
+        function submitSchedulePdfModal(e) {
+            e.preventDefault();
+            const date = document.getElementById('schedule_pdf_date').value;
+            const orientation = document.getElementById('schedule_orientation').value;
+            window.location.href = "{{ url_for('download_stegplan_pdf') }}?date=" + date + "&orientation=" + orientation;
+            closeSchedulePdfModal();
+        }
+
+        function openPdfModal() {
+            const modal = document.getElementById('pdfModal');
+            const dateInput = document.getElementById('pdf_date');
+            const today = new Date();
+            const localDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+            dateInput.value = localDate;
+            dateInput.min = localDate;
+            modal.classList.remove('hidden');
+        }
+        function closePdfModal() {
+            document.getElementById('pdfModal').classList.add('hidden');
+        }
+        function submitPdfModal(e) {
+            e.preventDefault();
+            const date = document.getElementById('pdf_date').value;
+            window.location.href = "{{ url_for('download_stundenplan_pdf') }}?date=" + date;
+            closePdfModal();
+        }
+    </script>
+</body>
+</html>

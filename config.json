@@ -1,0 +1,16 @@
+{
+  "db_host": "localhost",
+  "db_port": 5432,
+  "db_name": "orvo_db",
+  "db_user": "orvo_admin",
+  "db_pass": "change-in-production",
+  "svg_output_path": "/var/www/html/schedule.svg",
+  "timetable_output_path": "/var/www/html/timetable.svg",
+  "admin_user": "admin",
+  "admin_pass": "change-in-production",
+  "app_port": 5000,
+  "app_host": "127.0.0.1",
+  "secret_key": "change-in-production",
+  "sommerphase_start": "31.03",
+  "winterphase_start": "27.10"
+}

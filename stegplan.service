@@ -1,0 +1,13 @@
+[Unit]
+Description=ORVO Stegplan Flask App
+After=network.target
+
+[Service]
+User=stegplan
+Group=stegplan
+WorkingDirectory=/opt/stegplan
+ExecStart=/usr/bin/python3 /opt/stegplan/app.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
