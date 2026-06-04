@@ -37,7 +37,7 @@ fc-cache -fv
 ### 2. Clone and Install
 
 ```bash
-git clone <your-repo-url> stegplan
+git clone git@github.com:BanseBiz/stegplan-manager.git stegplan
 cd stegplan
 
 # Create virtual environment (optional but recommended)
