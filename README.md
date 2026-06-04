@@ -65,9 +65,9 @@ Create a `config.json` in the root directory based on this template:
   "admin_pass": "change-in-production",
   "app_port": 5000,
   "app_host": "127.0.0.1",
+  "secret_key": "change-in-production",
   "sommerphase_start": "31.03",
   "winterphase_start": "27.10",
-  "secret_key": "your-very-secret-flask-key"
 }
 ```
 
