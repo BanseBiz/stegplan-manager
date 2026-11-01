@@ -1,0 +1,41 @@
+{% extends 'layout.html' %}
+{% set overview_page = true %}
+
+{% block content %}
+{% include 'plan_tabs.html' %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-extrabold text-slate-800">{{ t('overview_title') }}</h2>
+    <p class="text-sm text-slate-600">
+        {{ t('overview_public') }}
+        <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('serve_overview_svg') }}">{{ url_for('serve_overview_svg') }}</a>
+    </p>
+</div>
+
+{% if is_admin %}
+<div class="bg-white p-8 rounded-xl shadow-lg border border-slate-200 mb-10">
+    <form method="POST" action="{{ url_for('save_overview_notes') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="block text-slate-700 text-sm font-bold mb-2" for="notes">{{ t('overview_notes_label') }}</label>
+        <textarea class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                  id="notes" name="notes" rows="6">{{ notes }}</textarea>
+        <div class="flex justify-end">
+            <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500 transition" type="submit">
+                {{ t('overview_notes_btn') }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% if overview_exists %}
+    <div class="bg-white p-4 rounded-xl shadow-inner border border-slate-200 overflow-x-auto mb-12">
+        <img src="{{ url_for('serve_overview_svg') }}?{{ range(1, 9999) | random }}" 
+             alt="{{ t('alt_overview_svg') }}" 
+             class="max-w-full h-auto mx-auto rounded shadow-sm">
+    </div>
+{% else %}
+    <div class="bg-amber-50 border border-amber-200 p-6 rounded-xl text-center text-amber-700">
+        <p class="font-medium">{{ t('overview_none') }}</p>
+    </div>
+{% endif %}
+{% endblock %}

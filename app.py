@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from flask import Flask
 from flask_login import LoginManager
-from database import DatabaseManager
+from database import DatabaseManager, build_db_uri
 from csv_handler import CsvHandler
 from generator import DocumentGenerator
 from frontend import Frontend
@@ -37,7 +37,7 @@ for key in ['secret_key', 'db_pass', 'admin_pass']:
 
 app.secret_key = config['secret_key']
 
-# Sicherheit: Upload-Größe auf 2 MB beschränken & Formulare absichern
+# Security: limit upload size to 2 MB and protect forms against CSRF
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 csrf = CSRFProtect(app)
 
@@ -46,9 +46,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Build database URI
-db_uri = f"postgresql://{config['db_user']}:{config['db_pass']}@{config['db_host']}:{config['db_port']}/{config['db_name']}"
-app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+app.config['SQLALCHEMY_DATABASE_URI'] = build_db_uri(config)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # --- 3. Initialize Components ---
@@ -84,13 +82,20 @@ def schedule_midnight_generation(app_context, db_mgr, doc_gen):
         
         with app_context:
             try:
-                events = db_mgr.get_all_events()
+                events = db_mgr.get_events()
                 doc_gen.generate_stegplan_svg(events)
+                for room in db_mgr.get_all_rooms():
+                    doc_gen.generate_room_svg(room, db_mgr.get_events(room.id))
+                frontend.regenerate_overview()
                 logger.info("Automatic nightly SVG generation successful.")
             except Exception as e:
                 logger.error(f"Error during nightly SVG generation: {e}")
 
 if __name__ == '__main__':
+    # The overview must exist right after a deployment, before the first change
+    with app.app_context():
+        frontend.regenerate_overview()
+
     # Start background thread for midnight generation
     threading.Thread(
         target=schedule_midnight_generation, 

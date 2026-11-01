@@ -51,7 +51,7 @@
                     <td class="py-4 px-6 font-bold text-slate-900">{{ user.username }} {% if user.username == admin_username %}<span class="text-xs bg-slate-200 text-slate-600 font-bold px-2 py-1 rounded-full ml-2">{{ t('users_badge_admin') }}</span>{% endif %}</td>
                     <td class="py-4 px-6 text-center">
                         {% if user.username != admin_username %}
-                        <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" class="m-0 inline-block" onsubmit="return confirm('{{ t('users_confirm_delete', user.username) }}');">
+                        <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" class="m-0 inline-block" data-confirm="{{ t('users_confirm_delete', user.username) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition">{{ t('table_btn_delete') }}</button>
                         </form>

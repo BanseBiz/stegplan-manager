@@ -1,15 +1,17 @@
 {% extends 'layout.html' %}
 
 {% block content %}
+{% include 'plan_tabs.html' %}
 <div class="flex justify-between items-center mb-6">
-    <h2 class="text-3xl font-extrabold text-slate-800">{{ t('index_title') }}</h2>
+    <h2 class="text-3xl font-extrabold text-slate-800">{{ room.name if room else t('index_title') }}</h2>
     <div class="flex items-center space-x-4">
-        <a href="{{ url_for('add_event') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-500 transition shadow">
+        <a href="{{ url_for('add_event', room=room.slug if room else None) }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-500 transition shadow">
             {{ t('index_btn_new') }}
         </a>
         {% if events %}
-        <form action="{{ url_for('delete_all_events') }}" method="POST" class="m-0" onsubmit="return confirm('{{ t('index_confirm_delete_all') }}');">
+        <form action="{{ url_for('delete_all_events') }}" method="POST" class="m-0" data-confirm="{{ t('index_confirm_delete_all_room', room.name) if room else t('index_confirm_delete_all') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if room %}<input type="hidden" name="room" value="{{ room.slug }}">{% endif %}
             <button type="submit" class="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-lg font-bold transition shadow">
                 {{ t('index_btn_delete_all') }}
             </button>
@@ -46,11 +48,11 @@
                     {{ supervisors | join(' & ') }}
                 </td>
                 <td class="py-4 px-6 text-center">
-                    <div class="flex item-center justify-center space-x-3">
+                    <div class="flex items-center justify-center space-x-3">
                         <a href="{{ url_for('edit_event', id=event.id) }}" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition">
                             {{ t('table_btn_edit') }}
                         </a>
-                        <form action="{{ url_for('delete_event', id=event.id) }}" method="POST" class="m-0" onsubmit="return confirm('{{ t('table_confirm_delete') }}');">
+                        <form action="{{ url_for('delete_event', id=event.id) }}" method="POST" class="m-0" data-confirm="{{ t('table_confirm_delete') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition">
                                 {{ t('table_btn_delete') }}
@@ -69,6 +71,26 @@
         </tbody>
     </table>
 </div>
+{% if room %}
+<div class="mt-12 mb-12">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-200 pb-2">
+        <h2 class="text-2xl font-bold text-slate-800">{{ t('preview_room_title') }}</h2>
+    </div>
+
+    {% if room_svg_exists %}
+        <div class="bg-white p-4 rounded-xl shadow-inner border border-slate-200 overflow-x-auto">
+            <img src="{{ url_for('serve_room_svg', slug=room.slug) }}?{{ range(1, 9999) | random }}" 
+                 alt="{{ t('alt_room_svg', room.name) }}" 
+                 class="max-w-full h-auto mx-auto rounded shadow-sm">
+        </div>
+    {% else %}
+        <div class="bg-amber-50 border border-amber-200 p-6 rounded-xl text-center text-amber-700">
+            <p class="font-medium">{{ t('preview_stegplan_none') }}</p>
+            <p class="text-sm mt-1">{{ t('preview_stegplan_hint') }}</p>
+        </div>
+    {% endif %}
+</div>
+{% else %}
 <div class="mt-12">
     <div class="flex items-center justify-between mb-4 border-b border-slate-200 pb-2">
         <h2 class="text-2xl font-bold text-slate-800">{{ t('preview_stegplan_title') }}</h2>
@@ -106,4 +128,5 @@
         </div>
     {% endif %}
 </div>
+{% endif %}
 {% endblock %}

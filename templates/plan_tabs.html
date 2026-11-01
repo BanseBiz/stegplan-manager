@@ -1,0 +1,9 @@
+{% set active_tab = 'bg-slate-800 text-white shadow' %}
+{% set inactive_tab = 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100' %}
+<div class="flex space-x-2 overflow-x-auto mb-6">
+    <a href="{{ url_for('index') }}" class="{{ active_tab if not room and not overview_page else inactive_tab }} px-4 py-2 rounded-lg font-bold transition whitespace-nowrap">{{ t('tab_stegplan') }}</a>
+    {% for tab in rooms %}
+    <a href="{{ url_for('room_plan', slug=tab.slug) }}" class="{{ active_tab if room and room.id == tab.id else inactive_tab }} px-4 py-2 rounded-lg font-bold transition whitespace-nowrap">{{ tab.name }}</a>
+    {% endfor %}
+    <a href="{{ url_for('overview') }}" class="{{ active_tab if overview_page else inactive_tab }} px-4 py-2 rounded-lg font-bold transition whitespace-nowrap">{{ t('tab_overview') }}</a>
+</div>

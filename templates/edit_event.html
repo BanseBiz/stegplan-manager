@@ -14,6 +14,7 @@
 
     <form method="POST" action="{% if event %}{{ url_for('edit_event', id=event.id) }}{% else %}{{ url_for('add_event') }}{% endif %}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if room %}<input type="hidden" name="room" value="{{ room.slug }}">{% endif %}
         
         <div class="mb-5">
             <label class="block text-slate-700 text-sm font-bold mb-2" for="name">{{ t('edit_name_label') }}</label>
@@ -53,7 +54,9 @@
             <div>
                 <label class="block text-slate-700 text-sm font-bold mb-2" for="season">{{ t('edit_season_label') }}</label>
                 <select class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition cursor-pointer bg-white" 
-                        id="season" name="season" required>
+                        id="season" name="season" required
+                        data-summer-start="{{ config.get('sommerphase_start', '31.03') }}"
+                        data-winter-start="{{ config.get('winterphase_start', '27.10') }}">
                     <option value="Immer" {% if event and event.season == 'Immer' %}selected{% endif %}>{{ t('season_always') }}</option>
                     <option value="Sommer" {% if event and event.season == 'Sommer' %}selected{% endif %}>{{ t('season_summer') }}</option>
                     <option value="Winter" {% if event and event.season == 'Winter' %}selected{% endif %}>{{ t('season_winter') }}</option>
@@ -90,8 +93,23 @@
                    value="{{ event.comment if event else '' }}">
         </div>
 
+        {% if other_rooms %}
+        <div class="mb-8">
+            <span class="block text-slate-700 text-sm font-bold mb-2">{{ t('edit_copy_rooms_label') }}</span>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {% for other in other_rooms %}
+                <label class="flex items-center space-x-2 text-sm text-slate-700 cursor-pointer">
+                    <input type="checkbox" name="copy_to_rooms" value="{{ other.id }}">
+                    <span>{{ other.name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            <p class="text-sm text-slate-500 mt-1">{{ t('edit_copy_rooms_hint') }}</p>
+        </div>
+        {% endif %}
+
         <div class="flex items-center justify-between pt-4 border-t border-slate-200">
-            <a class="font-bold text-sm text-slate-500 hover:text-slate-800 transition" href="{{ url_for('index') }}">
+            <a class="font-bold text-sm text-slate-500 hover:text-slate-800 transition" href="{{ back_url }}">
                 {{ t('btn_back_cancel') | safe }}
             </a>
             <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-8 rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-500 transition" type="submit">
@@ -100,55 +118,4 @@
         </div>
     </form>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const saisonSelect = document.getElementById('season');
-    const startInput = document.getElementById('start_date');
-    const endInput = document.getElementById('end_date');
-    
-    const sommerStart = "{{ config.get('sommerphase_start', '31.03') }}";
-    const winterStart = "{{ config.get('winterphase_start', '27.10') }}";
-    
-    function updateFields() {
-        const val = saisonSelect.value;
-        if (val === 'Immer') {
-            startInput.value = '';
-            endInput.value = '';
-            startInput.readOnly = true;
-            endInput.readOnly = true;
-            startInput.classList.add('bg-slate-100', 'text-slate-500');
-            endInput.classList.add('bg-slate-100', 'text-slate-500');
-        } else if (val === 'Sommer') {
-            startInput.value = sommerStart;
-            endInput.value = winterStart;
-            startInput.readOnly = true;
-            endInput.readOnly = true;
-            startInput.classList.add('bg-slate-100', 'text-slate-500');
-            endInput.classList.add('bg-slate-100', 'text-slate-500');
-        } else if (val === 'Winter') {
-            startInput.value = winterStart;
-            endInput.value = sommerStart;
-            startInput.readOnly = true;
-            endInput.readOnly = true;
-            startInput.classList.add('bg-slate-100', 'text-slate-500');
-            endInput.classList.add('bg-slate-100', 'text-slate-500');
-        } else if (val === 'Manuell') {
-            startInput.readOnly = false;
-            endInput.readOnly = false;
-            startInput.classList.remove('bg-slate-100', 'text-slate-500');
-            endInput.classList.remove('bg-slate-100', 'text-slate-500');
-        }
-    }
-    
-    saisonSelect.addEventListener('change', updateFields);
-    
-    // Init on page load (don't overwrite user's values on edit, unless missing)
-    if (saisonSelect.value !== 'Manuell') {
-        startInput.readOnly = true; endInput.readOnly = true;
-        startInput.classList.add('bg-slate-100', 'text-slate-500');
-        endInput.classList.add('bg-slate-100', 'text-slate-500');
-    }
-});
-</script>
 {% endblock %}
