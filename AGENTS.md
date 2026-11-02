@@ -42,7 +42,8 @@ Users can create, edit, and delete events. The application automatically generat
 
 1. **Database & Initialization:**
    - Handled by `DatabaseManager`. Automatic creation of tables and default admin user on startup.
-   - `db.create_all()` does not extend existing tables. New columns on existing tables need an idempotent, additive step in `DatabaseManager.migrate_schema`.
+   - `db.create_all()` does not extend existing tables. New columns on existing tables need an idempotent, additive step in `DatabaseManager.migrate_schema`. One-time data changes run only when their table is new (see the backfill of `room_manager`).
+   - Rooms have managers (`room_manager`, `Room.managers`), the stegplan uses `User.manages_stegplan`. `Room.show_in_overview` only affects the overview.
    - An event belongs to a room via `Event.room_id`, `NULL` means the stegplan. Always pass the plan to `get_events`, `delete_all_events` and `add_new_events`, otherwise room events are missed or the wrong plan is changed.
    - Events have seasonal limits (`season`, `start_date`, `end_date`) to filter visibility based on the generated date. `Sommer` and `Winter` events follow `sommerphase_start` / `winterphase_start` from `config.json`; only `Manuell` events use their stored dates.
 
@@ -60,7 +61,8 @@ Users can create, edit, and delete events. The application automatically generat
 4. **Localization & Permissions:**
    - All UI text is loaded from `localization.json` via the `t()` function.
    - The app is hidden behind `@login_required`, except `/login` and the generated plans `/stegplan.svg`, `/stundenplan.svg`, `/raumplan/<slug>.svg` and `/nutzungszeiten.svg`, which are public on purpose.
-   - There is a designated "Admin User" defined in `config.json` who has exclusive access to `/users` and `/rooms`.
+   - There is a designated "Admin User" defined in `config.json` who has exclusive access to `/users` and `/rooms` and manages every plan.
+   - Other users only see the plans they manage. Every route that touches a plan must go through `Frontend.require_access` (directly or via `room_from_request` / `room_of`), which answers 404 for foreign plans.
 
 ## Coding Conventions for AI Agents
 

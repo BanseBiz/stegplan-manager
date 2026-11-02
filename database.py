@@ -21,16 +21,25 @@ def make_slug(name):
     slug = name.lower().translate(str.maketrans({'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss'}))
     return re.sub(r'[^a-z0-9]+', '-', slug).strip('-') or 'raum'
 
+room_managers = db.Table(
+    'room_manager',
+    db.Column('room_id', db.Integer, db.ForeignKey('room.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+)
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    manages_stegplan = db.Column(db.Boolean, default=False, nullable=False)
 
 class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     slug = db.Column(db.String(120), unique=True, nullable=False) # Stays stable on rename, it is part of public URLs
     sort_order = db.Column(db.Integer, default=0, nullable=False)
+    show_in_overview = db.Column(db.Boolean, default=True, nullable=False)
+    managers = db.relationship('User', secondary=room_managers, backref='managed_rooms', order_by='User.username')
 
 class Setting(db.Model):
     key = db.Column(db.String(50), primary_key=True)
@@ -67,8 +76,9 @@ class DatabaseManager:
         """Initializes the database with the Flask app and creates default admin."""
         db.init_app(app)
         with app.app_context():
+            had_room_managers = inspect(db.engine).has_table('room_manager')
             db.create_all()
-            self.migrate_schema()
+            self.migrate_schema(config, backfill_room_managers=not had_room_managers)
             logger.info("Database initialized successfully.")
             if not User.query.first():
                 admin_user = config.get('admin_user', 'admin')
@@ -78,13 +88,31 @@ class DatabaseManager:
                 db.session.commit()
                 logger.info(f"Default admin user '{admin_user}' created.")
 
-    def migrate_schema(self):
+    def migrate_schema(self, config, backfill_room_managers=False):
         """Adds columns that db.create_all() does not add to existing tables."""
-        columns = [column['name'] for column in inspect(db.engine).get_columns('event')]
-        if 'room_id' not in columns:
+        inspector = inspect(db.engine)
+        if 'room_id' not in [column['name'] for column in inspector.get_columns('event')]:
             db.session.execute(text('ALTER TABLE event ADD COLUMN room_id INTEGER REFERENCES room(id)'))
             db.session.commit()
             logger.info("Added column event.room_id.")
+        if 'show_in_overview' not in [column['name'] for column in inspector.get_columns('room')]:
+            db.session.execute(text('ALTER TABLE room ADD COLUMN show_in_overview BOOLEAN NOT NULL DEFAULT TRUE'))
+            db.session.commit()
+            logger.info("Added column room.show_in_overview.")
+        if 'manages_stegplan' not in [column['name'] for column in inspector.get_columns('user')]:
+            # Existing users keep the access to the stegplan they had before
+            db.session.execute(text('ALTER TABLE "user" ADD COLUMN manages_stegplan BOOLEAN NOT NULL DEFAULT TRUE'))
+            db.session.commit()
+            logger.info("Added column user.manages_stegplan.")
+        if backfill_room_managers:
+            # Existing users keep the access to the existing rooms they had before
+            users = User.query.filter(User.username != config.get('admin_user', 'admin')).all()
+            rooms = Room.query.all()
+            for room in rooms:
+                room.managers = list(users)
+            db.session.commit()
+            if rooms and users:
+                logger.info(f"Assigned {len(users)} users to {len(rooms)} existing rooms.")
 
     # --- User Operations ---
     def get_user(self, user_id):
@@ -147,12 +175,25 @@ class DatabaseManager:
         db.session.commit()
         return room
 
-    def update_room(self, room_id, name, sort_order):
+    def update_room(self, room_id, name, sort_order, show_in_overview=True):
         room = self.get_room(room_id)
         room.name = name
         room.sort_order = sort_order
+        room.show_in_overview = show_in_overview
         db.session.commit()
         return room
+
+    def set_room_managers(self, room_id, user_ids):
+        """Replaces the users who manage a room."""
+        room = self.get_room(room_id)
+        room.managers = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
+        db.session.commit()
+
+    def set_stegplan_managers(self, user_ids):
+        """Replaces the users who manage the stegplan."""
+        for user in User.query.all():
+            user.manages_stegplan = user.id in user_ids
+        db.session.commit()
 
     def delete_room(self, room_id):
         """Deletes a room with all of its events."""
@@ -169,9 +210,10 @@ class DatabaseManager:
         """Returns the events of a room, or of the stegplan without a room_id."""
         return Event.query.filter_by(room_id=room_id).all()
 
-    def get_all_plans(self):
-        """Returns (room, events) of all plans in display order. The stegplan comes first with room None."""
-        return [(None, self.get_events())] + [(room, self.get_events(room.id)) for room in self.get_all_rooms()]
+    def get_overview_plans(self):
+        """Returns (room, events) of the plans in the overview. The stegplan comes first with room None."""
+        rooms = [room for room in self.get_all_rooms() if room.show_in_overview]
+        return [(None, self.get_events())] + [(room, self.get_events(room.id)) for room in rooms]
 
     def get_event(self, event_id):
         return Event.query.get_or_404(event_id)

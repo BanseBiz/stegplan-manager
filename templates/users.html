@@ -34,6 +34,7 @@
                 </div>
             </div>
         </form>
+        <p class="text-sm text-slate-500 mt-1">{{ t('users_permissions_hint') }}</p>
     </div>
 
     <!-- User List -->
@@ -42,6 +43,7 @@
             <thead>
                 <tr class="bg-slate-100 text-slate-600 uppercase text-sm leading-normal border-b border-slate-200">
                     <th class="py-4 px-6 font-bold">{{ t('login_username') }}</th>
+                    <th class="py-4 px-6 font-bold">{{ t('users_plans') }}</th>
                     <th class="py-4 px-6 font-bold text-center">{{ t('table_actions') }}</th>
                 </tr>
             </thead>
@@ -49,6 +51,14 @@
                 {% for user in users %}
                 <tr class="border-b border-slate-100 hover:bg-slate-50">
                     <td class="py-4 px-6 font-bold text-slate-900">{{ user.username }} {% if user.username == admin_username %}<span class="text-xs bg-slate-200 text-slate-600 font-bold px-2 py-1 rounded-full ml-2">{{ t('users_badge_admin') }}</span>{% endif %}</td>
+                    <td class="py-4 px-6">
+                        {% if user.username == admin_username %}
+                            {{ t('users_all_plans') }}
+                        {% else %}
+                            {% set plans = ([t('tab_stegplan')] if user.manages_stegplan else []) + (user.managed_rooms | map(attribute='name') | list) %}
+                            {{ plans | join(', ') or t('users_no_plans') }}
+                        {% endif %}
+                    </td>
                     <td class="py-4 px-6 text-center">
                         {% if user.username != admin_username %}
                         <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" class="m-0 inline-block" data-confirm="{{ t('users_confirm_delete', user.username) }}">

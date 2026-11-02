@@ -36,41 +36,48 @@
         </form>
     </div>
 
-    <!-- Room List -->
+    <!-- Plan List -->
     <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200">
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="bg-slate-100 text-slate-600 uppercase text-sm leading-normal border-b border-slate-200">
                     <th class="py-4 px-3 font-bold">{{ t('rooms_name') }}</th>
-                    <th class="py-4 px-3 font-bold">{{ t('rooms_order') }}</th>
                     <th class="py-4 px-3 font-bold">{{ t('rooms_events') }}</th>
+                    <th class="py-4 px-3 font-bold">{{ t('rooms_in_overview') }}</th>
+                    <th class="py-4 px-3 font-bold">{{ t('rooms_managers') }}</th>
                     <th class="py-4 px-3 font-bold">{{ t('rooms_address') }}</th>
                     <th class="py-4 px-3 font-bold text-center">{{ t('table_actions') }}</th>
                 </tr>
             </thead>
             <tbody class="text-slate-600 text-sm font-medium">
+                <tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="py-4 px-3 font-bold text-slate-900">{{ t('tab_stegplan') }}</td>
+                    <td class="py-4 px-3">
+                        <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('index') }}">{{ stegplan_count }}</a>
+                    </td>
+                    <td class="py-4 px-3">{{ t('rooms_yes') }}</td>
+                    <td class="py-4 px-3">{{ stegplan_managers | map(attribute='username') | join(', ') or t('rooms_nobody') }}</td>
+                    <td class="py-4 px-3">
+                        <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('serve_svg') }}">stegplan.svg</a>
+                    </td>
+                    <td class="py-4 px-3 text-center">
+                        <a href="{{ url_for('edit_stegplan') }}" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition">{{ t('table_btn_edit') }}</a>
+                    </td>
+                </tr>
                 {% for room in rooms %}
                 <tr class="border-b border-slate-100 hover:bg-slate-50">
-                    <td class="py-4 px-3">
-                        <form id="room-form-{{ room.id }}" method="POST" action="{{ url_for('edit_room', room_id=room.id) }}" class="m-0">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input class="shadow-sm border border-slate-300 rounded-lg py-2 px-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   name="name" type="text" size="22" required maxlength="100" value="{{ room.name }}" aria-label="{{ t('rooms_name') }}">
-                        </form>
-                    </td>
-                    <td class="py-4 px-3">
-                        <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2 px-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               form="room-form-{{ room.id }}" name="sort_order" type="number" value="{{ room.sort_order }}" aria-label="{{ t('rooms_order') }}">
-                    </td>
+                    <td class="py-4 px-3 font-bold text-slate-900">{{ room.name }}</td>
                     <td class="py-4 px-3">
                         <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('room_plan', slug=room.slug) }}">{{ event_counts[room.id] }}</a>
                     </td>
+                    <td class="py-4 px-3">{{ t('rooms_yes') if room.show_in_overview else t('rooms_no') }}</td>
+                    <td class="py-4 px-3">{{ room.managers | map(attribute='username') | join(', ') or t('rooms_nobody') }}</td>
                     <td class="py-4 px-3">
                         <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('serve_room_svg', slug=room.slug) }}">{{ room.slug }}.svg</a>
                     </td>
                     <td class="py-4 px-3 text-center">
                         <div class="flex justify-center space-x-3">
-                            <button type="submit" form="room-form-{{ room.id }}" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition">{{ t('rooms_btn_save') }}</button>
+                            <a href="{{ url_for('edit_room', room_id=room.id) }}" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition">{{ t('table_btn_edit') }}</a>
                             <form action="{{ url_for('delete_room', room_id=room.id) }}" method="POST" class="m-0 inline-block" data-confirm="{{ t('rooms_confirm_delete', room.name, event_counts[room.id]) }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition">{{ t('table_btn_delete') }}</button>
@@ -80,7 +87,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="py-12 text-center text-slate-500 text-lg">{{ t('rooms_none') }}</td>
+                    <td colspan="6" class="py-12 text-center text-slate-500 text-lg">{{ t('rooms_none') }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

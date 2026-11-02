@@ -93,7 +93,13 @@ The app will automatically initialize the database, create the admin user, and s
 | Room | `/raumplan/<slug>.svg` | `/raum/<slug>` |
 | Overview | `/nutzungszeiten.svg` | `/uebersicht` |
 
-The admin manages rooms under `/rooms`. A room keeps its address when it is renamed, so embedded plans keep working. Everybody logged in can maintain the events of a room.
+The admin manages rooms under `/rooms`. A room keeps its address when it is renamed, so embedded plans keep working.
+
+### Managers
+
+The admin decides per room and for the stegplan which users manage it. Other users do not see that plan in the app at all, the admin always sees everything. New users and new rooms start without managers. When upgrading from a version without managers, all existing users are assigned to all existing rooms and the stegplan once, so nobody loses access by the update.
+
+A checkbox per room decides whether it appears in the overview. The public plan of the room stays available either way.
 
 The overview lists the events that are active today and is regenerated with every change, on startup and at night. The app overwrites the file at `overview_output_path` when it starts, so import all plans before you point it at a file that is in use.
 

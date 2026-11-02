@@ -182,7 +182,7 @@ class OverviewRoutesTest(FrontendTestCase):
         self.client.post('/rooms/add', data={'name': 'Kraftraum', 'sort_order': '1'})
         room = self.db_manager.get_room_by_slug('kraftraum')
         self.add_event(room='kraftraum')
-        self.client.post(f'/rooms/edit/{room.id}', data={'name': 'Kraftkammer', 'sort_order': '1'})
+        self.client.post(f'/rooms/{room.id}', data={'name': 'Kraftkammer', 'sort_order': '1', 'show_in_overview': '1'})
         self.assertIn('KRAFTKAMMER', self.public_svg())
         self.client.post(f'/rooms/delete/{room.id}')
         self.assertNotIn('KRAFTKAMMER', self.public_svg())
@@ -262,7 +262,7 @@ class SettingTest(FrontendTestCase):
     def test_plans_are_listed_in_display_order(self):
         second = self.db_manager.add_room('Zweiter', 2)
         first = self.db_manager.add_room('Erster', 1)
-        self.assertEqual([room for room, _ in self.db_manager.get_all_plans()], [None, first, second])
+        self.assertEqual([room for room, _ in self.db_manager.get_overview_plans()], [None, first, second])
 
 
 if __name__ == '__main__':

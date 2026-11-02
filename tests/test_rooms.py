@@ -273,7 +273,7 @@ class RoomAdminTest(FrontendTestCase):
             self.assertEqual(self.client.get(path).status_code, 302, path)
 
     def test_rename_keeps_the_address_and_updates_the_title(self):
-        self.client.post(f'/rooms/edit/{self.room.id}', data={'name': 'Kraftkammer', 'sort_order': '5'})
+        self.client.post(f'/rooms/{self.room.id}', data={'name': 'Kraftkammer', 'sort_order': '5'})
         self.assertEqual(self.room.name, 'Kraftkammer')
         self.assertEqual(self.room.sort_order, 5)
         response = self.client.get('/raumplan/kraftraum.svg')
@@ -289,11 +289,11 @@ class RoomAdminTest(FrontendTestCase):
     def test_room_cannot_take_the_name_of_another_one(self):
         self.client.post('/rooms/add', data={'name': 'Ergoraum'})
         ergo = self.db_manager.get_room_by_slug('ergoraum')
-        self.client.post(f'/rooms/edit/{ergo.id}', data={'name': 'Kraftraum', 'sort_order': '1'})
+        self.client.post(f'/rooms/{ergo.id}', data={'name': 'Kraftraum', 'sort_order': '1'})
         self.assertEqual(ergo.name, 'Ergoraum')
 
     def test_keeping_the_own_name_is_allowed(self):
-        self.client.post(f'/rooms/edit/{self.room.id}', data={'name': 'Kraftraum', 'sort_order': '9'})
+        self.client.post(f'/rooms/{self.room.id}', data={'name': 'Kraftraum', 'sort_order': '9'})
         self.assertEqual(self.room.sort_order, 9)
 
     def test_delete_removes_room_events_and_file_but_not_the_stegplan(self):
@@ -311,13 +311,15 @@ class RoomAdminTest(FrontendTestCase):
         login(self.client, 'steg', 'steg-password')
         self.assertEqual(self.client.get('/rooms').status_code, 302)
         self.client.post('/rooms/add', data={'name': 'Fremd'})
-        self.client.post(f'/rooms/edit/{self.room.id}', data={'name': 'Fremd', 'sort_order': '1'})
+        self.client.post(f'/rooms/{self.room.id}', data={'name': 'Fremd', 'sort_order': '1'})
         self.client.post(f'/rooms/delete/{self.room.id}')
         self.assertEqual([room.name for room in self.db_manager.get_all_rooms()], ['Kraftraum'])
         self.assertNotIn('/rooms"', self.client.get('/').data.decode())
 
     def test_regular_users_can_maintain_room_events(self):
         self.client.post('/users/add', data={'username': 'steg', 'password': 'steg-password'})
+        steg = self.db_manager.get_user_by_username('steg')
+        self.client.post(f'/rooms/{self.room.id}', data={'name': 'Kraftraum', 'sort_order': '1', 'managers': [str(steg.id)]})
         self.client.get('/logout')
         login(self.client, 'steg', 'steg-password')
         self.add_event(room='kraftraum')

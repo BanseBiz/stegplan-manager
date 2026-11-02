@@ -48,12 +48,43 @@ class Frontend:
         if len(errors) > self.MAX_CSV_ERRORS:
             flash(self.loc.get('csv_error_more', len(errors) - self.MAX_CSV_ERRORS), 'error')
 
+    def is_admin(self):
+        return current_user.is_authenticated and current_user.username == self.config.get('admin_user', 'admin')
+
+    def can_manage(self, room):
+        """Checks if the current user may see and change a room, or the stegplan for None."""
+        if self.is_admin():
+            return True
+        if not current_user.is_authenticated:
+            return False
+        if room is None:
+            return bool(current_user.manages_stegplan)
+        return room.id in {managed.id for managed in current_user.managed_rooms}
+
+    def require_access(self, room):
+        """Returns the room if the current user manages it. Other plans do not exist for them."""
+        if not self.can_manage(room):
+            abort(404)
+        return room
+
+    def visible_rooms(self):
+        """Returns the rooms the current user manages, in display order."""
+        return [room for room in self.db_manager.get_all_rooms() if self.can_manage(room)]
+
+    def assignable_users(self):
+        """Returns the users that can be assigned to plans. The admin always has access."""
+        admin_username = self.config.get('admin_user', 'admin')
+        return [user for user in self.db_manager.get_all_users() if user.username != admin_username]
+
+    def selected_user_ids(self):
+        """Returns the ids of the assignable users checked in the submitted form."""
+        checked = set(request.form.getlist('managers'))
+        return [user.id for user in self.assignable_users() if str(user.id) in checked]
+
     def room_from_request(self):
-        """Returns the room a request refers to, or None for the stegplan."""
+        """Returns the room a request refers to, or None for the stegplan, if the current user manages it."""
         slug = request.values.get('room')
-        if not slug:
-            return None
-        return self.get_room_or_404(slug)
+        return self.require_access(self.get_room_or_404(slug) if slug else None)
 
     def get_room_or_404(self, slug):
         room = self.db_manager.get_room_by_slug(slug)
@@ -62,8 +93,8 @@ class Frontend:
         return room
 
     def room_of(self, event):
-        """Returns the room of an event, or None for the stegplan."""
-        return self.db_manager.get_room(event.room_id) if event.room_id else None
+        """Returns the room of an event, or None for the stegplan, if the current user manages it."""
+        return self.require_access(self.db_manager.get_room(event.room_id) if event.room_id else None)
 
     def plan_url(self, room):
         """Returns the dashboard address of a room or the stegplan."""
@@ -76,7 +107,7 @@ class Frontend:
     def regenerate_overview(self):
         """Regenerates the SVG file of the overview."""
         try:
-            self.doc_generator.generate_overview_svg(self.db_manager.get_all_plans(), self.overview_notes())
+            self.doc_generator.generate_overview_svg(self.db_manager.get_overview_plans(), self.overview_notes())
         except Exception as e:
             logger.error(f"Error generating overview SVG: {e}")
 
@@ -113,7 +144,7 @@ class Frontend:
     def render_event_form(self, room, event=None, error=None):
         other_rooms = []
         if room and not event:
-            other_rooms = [other for other in self.db_manager.get_all_rooms() if other.id != room.id]
+            other_rooms = [other for other in self.visible_rooms() if other.id != room.id]
         return render_template('edit_event.html', event=event, error=error, room=room, other_rooms=other_rooms, back_url=self.plan_url(room))
 
     def render_dashboard(self, room):
@@ -127,7 +158,7 @@ class Frontend:
         room_svg_exists = bool(room) and os.path.exists(self.doc_generator.get_room_svg_path(room))
 
         return render_template(
-            'index.html', events=events_sorted, room=room, rooms=self.db_manager.get_all_rooms(),
+            'index.html', events=events_sorted, room=room, rooms=self.visible_rooms(), plan_actions=True,
             svg_exists=os.path.exists(svg_path), stundenplan_exists=os.path.exists(timetable_path), room_svg_exists=room_svg_exists
         )
 
@@ -145,8 +176,8 @@ class Frontend:
         
         @self.app.context_processor
         def inject_config():
-            """Makes the configuration available to all templates."""
-            return dict(config=self.config)
+            """Makes the configuration and the access to the stegplan available to all templates."""
+            return dict(config=self.config, stegplan_access=self.can_manage(None))
 
         @self.app.after_request
         def set_security_headers(response):
@@ -184,14 +215,17 @@ class Frontend:
         @self.app.route('/')
         @login_required
         def index():
-            """Displays the stegplan events and checks if the SVG exists."""
+            """Displays the stegplan events, or leads users without access to their first plan."""
+            if not self.can_manage(None):
+                rooms = self.visible_rooms()
+                return redirect(self.plan_url(rooms[0]) if rooms else url_for('overview'))
             return self.render_dashboard(None)
 
         @self.app.route('/raum/<slug>')
         @login_required
         def room_plan(slug):
             """Displays the events of a room."""
-            return self.render_dashboard(self.get_room_or_404(slug))
+            return self.render_dashboard(self.require_access(self.get_room_or_404(slug)))
 
         # --- SVG Serving ---
         @self.app.route('/stegplan.svg')
@@ -231,6 +265,7 @@ class Frontend:
         @login_required
         def download_stegplan_pdf():
             """Converts the stegplan to PDF (optionally for a specific date and orientation)."""
+            self.require_access(None)
             orientation = request.args.get('orientation', 'portrait')
             target_date = self.pdf_target_date()
 
@@ -245,6 +280,7 @@ class Frontend:
         @login_required
         def download_stundenplan_pdf():
             """Converts the timetable to PDF (optionally for a specific date)."""
+            self.require_access(None)
             target_date = self.pdf_target_date()
 
             all_events = self.db_manager.get_events()
@@ -258,7 +294,7 @@ class Frontend:
         @login_required
         def download_room_pdf(slug):
             """Converts the plan of a room to PDF (optionally for a specific date)."""
-            room = self.get_room_or_404(slug)
+            room = self.require_access(self.get_room_or_404(slug))
             target_date = self.pdf_target_date()
 
             pdf_stream = self.doc_generator.generate_room_pdf_for_date(room, self.db_manager.get_events(room.id), target_date)
@@ -286,7 +322,7 @@ class Frontend:
                 # Copies in further rooms are independent events
                 if room:
                     copy_ids = request.form.getlist('copy_to_rooms')
-                    for other in self.db_manager.get_all_rooms():
+                    for other in self.visible_rooms():
                         if other.id != room.id and str(other.id) in copy_ids:
                             self.db_manager.add_event(room_id=other.id, **data)
                             self.regenerate_plan(other)
@@ -381,8 +417,7 @@ class Frontend:
         def overview():
             """Displays the overview of all plans."""
             return render_template(
-                'overview.html', rooms=self.db_manager.get_all_rooms(), notes=self.overview_notes(),
-                is_admin=current_user.username == self.config.get('admin_user', 'admin'),
+                'overview.html', rooms=self.visible_rooms(), notes=self.overview_notes(), is_admin=self.is_admin(),
                 overview_exists=os.path.exists(self.doc_generator.get_overview_svg_path())
             )
 
@@ -404,8 +439,12 @@ class Frontend:
             """Page for room management (admins only)."""
             rooms = self.db_manager.get_all_rooms()
             event_counts = {room.id: self.db_manager.count_events(room.id) for room in rooms}
+            stegplan_managers = [user for user in self.assignable_users() if user.manages_stegplan]
             next_order = max((room.sort_order for room in rooms), default=0) + 1
-            return render_template('rooms.html', rooms=rooms, event_counts=event_counts, next_order=next_order)
+            return render_template(
+                'rooms.html', rooms=rooms, event_counts=event_counts, stegplan_count=self.db_manager.count_events(),
+                stegplan_managers=stegplan_managers, next_order=next_order
+            )
 
         def read_room_form(room_id=None):
             """Returns the submitted name and order of a room, or None after flashing an error."""
@@ -427,22 +466,43 @@ class Frontend:
         @login_required
         @self.admin_required
         def add_room():
-            """Adds a new room with an empty plan (admins only)."""
+            """Adds a new room with an empty plan and continues with its settings (admins only)."""
             values = read_room_form()
-            if values:
-                self.regenerate_plan(self.db_manager.add_room(*values))
-            return redirect(url_for('manage_rooms'))
+            if not values:
+                return redirect(url_for('manage_rooms'))
+            room = self.db_manager.add_room(*values)
+            self.regenerate_plan(room)
+            return redirect(url_for('edit_room', room_id=room.id))
 
-        @self.app.route('/rooms/edit/<int:room_id>', methods=['POST'])
+        @self.app.route('/rooms/<int:room_id>', methods=['GET', 'POST'])
         @login_required
         @self.admin_required
         def edit_room(room_id):
-            """Renames or reorders a room (admins only). Its public address stays the same."""
-            self.db_manager.get_room(room_id)
-            values = read_room_form(room_id)
-            if values:
-                self.regenerate_plan(self.db_manager.update_room(room_id, *values))
-            return redirect(url_for('manage_rooms'))
+            """Edits name, order, overview flag and managers of a room (admins only). Its public address stays the same."""
+            room = self.db_manager.get_room(room_id)
+            if request.method == 'POST':
+                values = read_room_form(room_id)
+                if values:
+                    self.db_manager.update_room(room_id, *values, show_in_overview='show_in_overview' in request.form)
+                    self.db_manager.set_room_managers(room_id, self.selected_user_ids())
+                    self.regenerate_plan(room)
+                    flash(self.loc.get('room_saved', room.name), 'success')
+                    return redirect(url_for('manage_rooms'))
+                return redirect(url_for('edit_room', room_id=room_id))
+            selected = {user.id for user in room.managers}
+            return render_template('room_edit.html', room=room, users=self.assignable_users(), selected=selected)
+
+        @self.app.route('/rooms/stegplan', methods=['GET', 'POST'])
+        @login_required
+        @self.admin_required
+        def edit_stegplan():
+            """Edits the managers of the stegplan (admins only)."""
+            if request.method == 'POST':
+                self.db_manager.set_stegplan_managers(self.selected_user_ids())
+                flash(self.loc.get('room_saved', self.loc.get('tab_stegplan')), 'success')
+                return redirect(url_for('manage_rooms'))
+            selected = {user.id for user in self.assignable_users() if user.manages_stegplan}
+            return render_template('room_edit.html', room=None, users=self.assignable_users(), selected=selected)
 
         @self.app.route('/rooms/delete/<int:room_id>', methods=['POST'])
         @login_required

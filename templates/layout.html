@@ -27,7 +27,7 @@
                 <a href="{{ url_for('change_password') }}" class="bg-slate-600 px-3 py-2 rounded-lg font-bold hover:bg-slate-500 transition shadow text-sm">{{ t('nav_profile') }}</a>
                 <div class="w-px h-6 bg-slate-700"></div>
 
-                {% if not overview_page %}
+                {% if plan_actions %}
                 {% if room %}
                 <button type="button" data-modal-open="roomPdfModal" class="bg-indigo-600 px-4 py-2 rounded-lg font-bold hover:bg-indigo-500 transition shadow">
                     {{ t('nav_room_pdf') }}
