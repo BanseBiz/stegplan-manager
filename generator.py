@@ -295,8 +295,8 @@ class DocumentGenerator:
             return None
         return start_dec, end_dec
 
-    def generate_timetable_svg_string(self, events, days, target_date=None, custom_title_date=False, title=None, fit_to_events=False):
-        """Generates a timetable layout as an SVG string. With fit_to_events the grid fills the page."""
+    def generate_timetable_svg_string(self, events, days, target_date=None, custom_title_date=False, title=None):
+        """Generates a timetable layout as an SVG string. The grid covers the hours with events and fills the page."""
         drawable_events = []
         for ev in events:
             if ev.weekday in days:
@@ -304,18 +304,17 @@ class DocumentGenerator:
                 if hours:
                     drawable_events.append((ev, hours[0], hours[1]))
 
-        # The grid covers 08:00 to 21:00 and only grows for events outside of that range
-        START_HOUR = min([8] + [int(start) for _, start, _ in drawable_events])
-        END_HOUR = max([20] + [math.ceil(end) - 1 for _, _, end in drawable_events])
-        if fit_to_events and drawable_events:
+        # The grid only covers the hours with events, an empty plan shows 08:00 to 21:00
+        if drawable_events:
             START_HOUR = min(int(start) for _, start, _ in drawable_events)
             END_HOUR = max(math.ceil(end) - 1 for _, _, end in drawable_events)
+        else:
+            START_HOUR, END_HOUR = 8, 20
         
-        HOUR_H, TIME_COL_W, COL_W = 80, 80, 215
+        TIME_COL_W, COL_W = 80, 215
         MARGIN_TOP, MARGIN_LEFT = 110, 21
-        if fit_to_events:
-            # 1150 is the height that keeps the A4 proportions at this width
-            HOUR_H = (1150 - MARGIN_TOP - 20) / (END_HOUR - START_HOUR + 1)
+        # 1150 is the height that keeps the A4 proportions at this width
+        HOUR_H = (1150 - MARGIN_TOP - 20) / (END_HOUR - START_HOUR + 1)
         TOTAL_W = MARGIN_LEFT + TIME_COL_W + len(days) * COL_W + 20
         TOTAL_H = MARGIN_TOP + (END_HOUR - START_HOUR + 1) * HOUR_H + 20
 
@@ -486,7 +485,7 @@ class DocumentGenerator:
         active_events = [e for e in events if self.is_event_active(e, target_date=target_date)]
         return self.generate_timetable_svg_string(
             active_events, list(WEEKDAYS), target_date=target_date, custom_title_date=custom_title_date,
-            title=self.loc.get('title_room', room.name), fit_to_events=True
+            title=self.loc.get('title_room', room.name)
         )
 
     def generate_room_svg(self, room, events):

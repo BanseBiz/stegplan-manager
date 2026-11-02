@@ -109,9 +109,17 @@ class TimetableGridTest(unittest.TestCase):
     def grid_labels(self, svg):
         return re.findall(r'class="time-label">(\d\d:00)<', svg)
 
-    def test_grid_keeps_its_default_range(self):
-        labels = self.grid_labels(self.render(('10:00', '12:00')))
+    def test_grid_covers_only_the_hours_with_events(self):
+        labels = self.grid_labels(self.render(('10:00', '12:00'), ('14:00', '15:30')))
+        self.assertEqual((labels[0], labels[-1]), ('10:00', '15:00'))
+
+    def test_empty_plan_shows_the_default_grid(self):
+        labels = self.grid_labels(self.render())
         self.assertEqual((labels[0], labels[-1]), ('08:00', '20:00'))
+
+    def test_page_keeps_its_height(self):
+        for times in ((('10:00', '11:00'),), (('07:00', '08:00'), ('21:00', '22:00'))):
+            self.assertIn('viewBox="0 0 1626 1150', self.render(*times))
 
     def test_early_event_extends_the_grid_and_is_drawn(self):
         svg = self.render(('06:00', '07:30'))
@@ -123,9 +131,10 @@ class TimetableGridTest(unittest.TestCase):
         self.assertEqual(len(timetable_tiles(svg)), 1)
         self.assertEqual(self.grid_labels(svg)[-1], '22:00')
 
-    def test_tile_keeps_its_full_length_across_the_old_grid_start(self):
-        tile = timetable_tiles(self.render(('06:00', '09:00')))[0]
-        self.assertEqual(tile[3], 240.0)
+    def test_tiles_keep_their_proportions(self):
+        long_tile, short_tile = timetable_tiles(self.render(('06:00', '09:00'), ('10:00', '11:00')))
+        self.assertAlmostEqual(long_tile[3], 3 * short_tile[3])
+        self.assertAlmostEqual(short_tile[3], (1150 - 130) / 5)
 
     def test_event_ending_on_the_full_hour_needs_no_extra_row(self):
         labels = self.grid_labels(self.render(('20:00', '21:00')))
@@ -141,6 +150,16 @@ class TimetableGridTest(unittest.TestCase):
 class TimetableDesignTest(unittest.TestCase):
     def setUp(self):
         self.gen = make_generator()
+
+    def with_frame(self, *events):
+        """Adds events on Sunday that stretch the grid from 08:00 to 21:00, so short tiles stay short."""
+        frame = [make_event('08:00', '09:00', weekday='Sonntag', name='Rahmen'), make_event('20:00', '21:00', weekday='Sonntag', name='Rahmen')]
+        return list(events) + frame
+
+    def own_lines(self, svg):
+        """Returns the tile lines without those of the frame events."""
+        frame = ('Rahmen', '08:00 – 09:00 Uhr', '20:00 – 21:00 Uhr')
+        return [line for _, line in self.tile_lines(svg) if line not in frame]
 
     def tile_lines(self, svg):
         return re.findall(r'font-size="(\d+)" class="tile-text [a-z-]+">([^<]*)<', svg)
@@ -180,15 +199,15 @@ class TimetableDesignTest(unittest.TestCase):
     def test_text_that_does_not_fit_stays_inside_the_tile(self):
         event = make_event('10:00', '11:00', name='Offenes Rudern', supervisor1='Heini', comment='ein sehr langer Kommentar ' * 6)
         with self.assertLogs('generator', level='WARNING'):
-            svg = self.gen.generate_timetable_svg_string([event], WEEK)
+            svg = self.gen.generate_timetable_svg_string(self.with_frame(event), WEEK)
         tile = timetable_tiles(svg)[0]
-        baselines = [float(y) for y in re.findall(r'<text x="[\d.]+" y="([\d.]+)" font-size', svg)]
+        baselines = [float(y) for x, y in re.findall(r'<text x="([\d.]+)" y="([\d.]+)" font-size', svg) if tile[0] <= float(x) <= tile[0] + tile[2]]
         self.assertLessEqual(max(baselines), tile[1] + tile[3])
-        self.assertTrue(self.tile_lines(svg)[-1][1].endswith('…'))
+        self.assertTrue(self.own_lines(svg)[-1].endswith('…'))
 
     def test_short_tiles_always_show_name_and_time(self):
-        svg = self.gen.generate_timetable_svg_string([make_event('16:00', '16:30', name='Junioren U19 1')], WEEK)
-        self.assertEqual([line for _, line in self.tile_lines(svg)], ['Junioren U19 1', '16:00 – 16:30'])
+        svg = self.gen.generate_timetable_svg_string(self.with_frame(make_event('16:00', '16:30', name='Junioren U19 1')), WEEK)
+        self.assertEqual(self.own_lines(svg), ['Junioren U19 1', '16:00 – 16:30'])
 
     def test_short_tile_on_a_full_day_grid_keeps_name_and_time(self):
         room = SimpleNamespace(name='Ergoraum', slug='ergoraum')
@@ -199,15 +218,15 @@ class TimetableDesignTest(unittest.TestCase):
         self.assertIn('16:00 – 16:30', lines)
 
     def test_short_tile_keeps_the_time_when_the_name_is_long(self):
-        svg = self.gen.generate_timetable_svg_string([make_event('16:00', '16:30', name='Gemeinsames Rudern für Wiedereinsteiger und Anfänger')], WEEK)
-        lines = [line for _, line in self.tile_lines(svg)]
+        svg = self.gen.generate_timetable_svg_string(self.with_frame(make_event('16:00', '16:30', name='Gemeinsames Rudern für Wiedereinsteiger und Anfänger')), WEEK)
+        lines = self.own_lines(svg)
         self.assertEqual(len(lines), 2)
         self.assertTrue(lines[0].endswith('…'))
         self.assertEqual(lines[1], '16:00 – 16:30')
 
     def test_short_tile_adds_supervisors_next_to_the_time_if_they_fit(self):
-        svg = self.gen.generate_timetable_svg_string([make_event('16:00', '16:30', supervisor1='Elisa')], WEEK)
-        self.assertEqual(self.tile_lines(svg)[-1][1], '16:00 – 16:30 · Elisa')
+        svg = self.gen.generate_timetable_svg_string(self.with_frame(make_event('16:00', '16:30', supervisor1='Elisa')), WEEK)
+        self.assertEqual(self.own_lines(svg)[-1], '16:00 – 16:30 · Elisa')
 
     def test_text_that_fits_logs_nothing(self):
         with self.assertNoLogs('generator', level='WARNING'):

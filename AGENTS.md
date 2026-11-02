@@ -49,7 +49,7 @@ Users can create, edit, and delete events. The application automatically generat
 
 2. **SVG Generation (IMPORTANT):**
    - SVG is assembled directly via Python lists (`svg.append(...)`) and f-strings in `generator.py`.
-   - Two plans are generated: Stegplan (2-column tile layout) and Stundenplan (classic A4 timetable grid). Each room adds a timetable with a grid fitted to its events (`generate_room_svg`).
+   - Two plans are generated: Stegplan (2-column tile layout) and Stundenplan (classic A4 timetable grid). Each room adds a timetable (`generate_room_svg`). Every timetable grid only covers the hours with events and fills the A4 page.
    - The overview (`generate_overview_svg`) lists all active events by plan in a fixed layout with notes stored in `Setting`. Its layout follows the former hand-made `26-nutzungszeiten.svg`, so keep the look when changing it. `Frontend.regenerate_plan` also updates the overview, other changes must call `regenerate_overview`.
    - Generated automatically on event modification and nightly at 00:01 via a daemon thread in `app.py`.
    - The Stundenplan is printed in black and white: text and lines are pure black on white, without tinted backgrounds, transparency or shadows. Color is only an accent and must never be the only carrier of information.

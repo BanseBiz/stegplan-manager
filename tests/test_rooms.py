@@ -116,9 +116,12 @@ class RoomPlanRenderingTest(unittest.TestCase):
         self.assertEqual(stream.read(4), b'%PDF')
         self.assertIn('gültig ab 01.11.', self.gen.generate_room_svg_string(self.room, [], datetime(2026, 11, 1), custom_title_date=True))
 
-    def test_stundenplan_keeps_its_fixed_grid(self):
-        svg = self.gen.generate_timetable_svg_string([make_event('16:00', '17:00')], WEEK)
-        self.assertEqual(self.labels(svg)[0], '08:00')
+    def test_stundenplan_fits_its_events_like_rooms(self):
+        events = [make_event('16:00', '17:30'), make_event('20:30', '22:00', weekday='Mittwoch')]
+        stundenplan = self.labels(self.gen.generate_timetable_svg_string(events, WEEK))
+        room = self.labels(self.gen.generate_room_svg_string(self.room, events))
+        self.assertEqual(stundenplan, room)
+        self.assertEqual((stundenplan[0], stundenplan[-1]), ('16:00', '21:00'))
 
 
 class RoomRoutesTest(FrontendTestCase):
