@@ -24,11 +24,11 @@
                 <input class="shadow-sm border border-slate-300 rounded-lg w-full py-2.5 px-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                        id="sort_order" name="sort_order" type="number" value="{{ room.sort_order }}">
             </div>
+            {% endif %}
             <label class="flex items-center space-x-2 text-sm text-slate-700 cursor-pointer mb-8">
-                <input type="checkbox" name="show_in_overview" value="1" {% if room.show_in_overview %}checked{% endif %}>
+                <input type="checkbox" name="show_in_overview" value="1" {% if show_in_overview %}checked{% endif %}>
                 <span class="font-bold">{{ t('room_show_in_overview') }}</span>
             </label>
-            {% endif %}
 
             <div class="mb-8">
                 <span class="block text-slate-700 text-sm font-bold mb-2">{{ t('room_managers_label') }}</span>

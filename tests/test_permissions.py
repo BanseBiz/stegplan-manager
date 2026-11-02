@@ -114,7 +114,7 @@ class AccessTest(FrontendTestCase):
         self.kraft = self.db_manager.get_room_by_slug('kraftraum')
         self.ergo = self.db_manager.get_room_by_slug('ergoraum')
         self.assign(self.kraft, 'anna')
-        self.client.post('/rooms/stegplan', data={'managers': [str(self.users['bert'].id)]})
+        self.client.post('/rooms/stegplan', data={'managers': [str(self.users['bert'].id)], 'show_in_overview': '1'})
         self.add_event(name='Steg-Termin')
         self.add_event(name='Ergo-Termin', room='ergoraum')
         self.add_event(name='Kraft-Termin', room='kraftraum')
@@ -294,6 +294,45 @@ class AccessTest(FrontendTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Ergo-Termin', response.data)
         response.close()
+
+    def overview(self):
+        response = self.client.get('/nutzungszeiten.svg')
+        data = response.data.decode()
+        response.close()
+        return data
+
+    def test_stegplan_is_shown_in_the_overview_by_default(self):
+        self.assertTrue(self.db_manager.get_stegplan_in_overview())
+        self.assertIn('STEG', self.overview())
+
+    def test_stegplan_can_be_hidden_from_the_overview(self):
+        login(self.client)
+        self.assertIn('checked', self.client.get('/rooms/stegplan').data.decode().split('show_in_overview')[1][:40])
+        self.client.post('/rooms/stegplan', data={'managers': [str(self.users['bert'].id)]})
+        overview = self.overview()
+        self.assertNotIn('STEG', overview)
+        self.assertNotIn('Steg-Termin', overview)
+        self.assertIn('KRAFTRAUM', overview)
+        stegplan_row = self.client.get('/rooms').data.decode().split('>Stegplan</td>')[1].split('</tr>')[0]
+        self.assertIn('Nein', stegplan_row)
+        self.assertNotIn('checked', self.client.get('/rooms/stegplan').data.decode().split('show_in_overview')[1][:40])
+        self.assertTrue(self.users['bert'].manages_stegplan)
+        self.client.get('/logout')
+        response = self.client.get('/stegplan.svg')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Steg-Termin', response.data)
+        response.close()
+
+    def test_stegplan_can_be_shown_again(self):
+        login(self.client)
+        self.client.post('/rooms/stegplan', data={})
+        self.client.post('/rooms/stegplan', data={'show_in_overview': '1'})
+        self.assertIn('STEG', self.overview())
+
+    def test_only_the_admin_hides_the_stegplan(self):
+        self.as_user('bert')
+        self.client.post('/rooms/stegplan', data={})
+        self.assertTrue(self.db_manager.get_stegplan_in_overview())
 
     def test_public_plans_stay_public(self):
         for path in ('/stegplan.svg', '/stundenplan.svg', '/raumplan/kraftraum.svg', '/raumplan/ergoraum.svg', '/nutzungszeiten.svg'):

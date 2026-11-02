@@ -210,10 +210,17 @@ class DatabaseManager:
         """Returns the events of a room, or of the stegplan without a room_id."""
         return Event.query.filter_by(room_id=room_id).all()
 
+    def get_stegplan_in_overview(self):
+        return self.get_setting('stegplan_in_overview', '1') == '1'
+
+    def set_stegplan_in_overview(self, shown):
+        self.set_setting('stegplan_in_overview', '1' if shown else '0')
+
     def get_overview_plans(self):
         """Returns (room, events) of the plans in the overview. The stegplan comes first with room None."""
+        plans = [(None, self.get_events())] if self.get_stegplan_in_overview() else []
         rooms = [room for room in self.get_all_rooms() if room.show_in_overview]
-        return [(None, self.get_events())] + [(room, self.get_events(room.id)) for room in rooms]
+        return plans + [(room, self.get_events(room.id)) for room in rooms]
 
     def get_event(self, event_id):
         return Event.query.get_or_404(event_id)

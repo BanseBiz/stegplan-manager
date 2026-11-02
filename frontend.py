@@ -443,7 +443,7 @@ class Frontend:
             next_order = max((room.sort_order for room in rooms), default=0) + 1
             return render_template(
                 'rooms.html', rooms=rooms, event_counts=event_counts, stegplan_count=self.db_manager.count_events(),
-                stegplan_managers=stegplan_managers, next_order=next_order
+                stegplan_managers=stegplan_managers, stegplan_in_overview=self.db_manager.get_stegplan_in_overview(), next_order=next_order
             )
 
         def read_room_form(room_id=None):
@@ -490,19 +490,24 @@ class Frontend:
                     return redirect(url_for('manage_rooms'))
                 return redirect(url_for('edit_room', room_id=room_id))
             selected = {user.id for user in room.managers}
-            return render_template('room_edit.html', room=room, users=self.assignable_users(), selected=selected)
+            return render_template('room_edit.html', room=room, users=self.assignable_users(), selected=selected, show_in_overview=room.show_in_overview)
 
         @self.app.route('/rooms/stegplan', methods=['GET', 'POST'])
         @login_required
         @self.admin_required
         def edit_stegplan():
-            """Edits the managers of the stegplan (admins only)."""
+            """Edits the managers of the stegplan and whether it appears in the overview (admins only)."""
             if request.method == 'POST':
                 self.db_manager.set_stegplan_managers(self.selected_user_ids())
+                self.db_manager.set_stegplan_in_overview('show_in_overview' in request.form)
+                self.regenerate_overview()
                 flash(self.loc.get('room_saved', self.loc.get('tab_stegplan')), 'success')
                 return redirect(url_for('manage_rooms'))
             selected = {user.id for user in self.assignable_users() if user.manages_stegplan}
-            return render_template('room_edit.html', room=None, users=self.assignable_users(), selected=selected)
+            return render_template(
+                'room_edit.html', room=None, users=self.assignable_users(), selected=selected,
+                show_in_overview=self.db_manager.get_stegplan_in_overview()
+            )
 
         @self.app.route('/rooms/delete/<int:room_id>', methods=['POST'])
         @login_required

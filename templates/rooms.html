@@ -55,7 +55,7 @@
                     <td class="py-4 px-3">
                         <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('index') }}">{{ stegplan_count }}</a>
                     </td>
-                    <td class="py-4 px-3">{{ t('rooms_yes') }}</td>
+                    <td class="py-4 px-3">{{ t('rooms_yes') if stegplan_in_overview else t('rooms_no') }}</td>
                     <td class="py-4 px-3">{{ stegplan_managers | map(attribute='username') | join(', ') or t('rooms_nobody') }}</td>
                     <td class="py-4 px-3">
                         <a class="text-blue-600 hover:text-blue-800" href="{{ url_for('serve_svg') }}">stegplan.svg</a>
